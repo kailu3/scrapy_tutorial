@@ -1,6 +1,7 @@
 # -*- coding: utf-8 -*-
 import scrapy
-
+import collections
+import json
 
 class AirbnbSpider(scrapy.Spider):
     name = 'airbnb'
@@ -21,7 +22,18 @@ class AirbnbSpider(scrapy.Spider):
         yield scrapy.Request(url=url, callback=self.parse)
     
     def parse(self, response):
-        _file = "first_page.json"
-        with open(_file, 'wb') as f:
-            f.write(response.body)
+        data = json.loads(response.body)
 
+        homes = data.get('explore_tabs')[0].get('sections')[3].get('listings')
+
+        BASE_URL = 'https://www.airbnb.com/rooms/'
+
+        data_dict = collections.defaultdict(dict)
+        for home in homes:
+            room_id = str(home.get('listing').get('id'))
+            data_dict[room_id]['url'] = BASE_URL + str(home.get('listing').get('id'))
+            data_dict[room_id]['price'] = home.get('pricing_quote').get('rate').get('amount')
+            data_dict[room_id]['avg_rating'] = home.get('listing').get('avg_rating')
+            data_dict[room_id]['reviews_count'] = home.get('listing').get('reviews_count')
+
+        yield data_dict
